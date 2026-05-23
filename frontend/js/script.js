@@ -81,7 +81,7 @@ async function generate(text) {
 // Function for calling server
 
 async function callServer(inputText) {
-  const response = await fetch("http://localhost:3000/chat", {
+  const response = await fetch("https://sacbot-ai.onrender.com/chat", {
     method: "POST",
     headers: {
       "content-type": "application/json",
