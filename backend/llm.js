@@ -52,7 +52,7 @@ export async function generate(userMessage, threadId) {
       const completion = await groq.chat.completions.create({
         temperature: 0.3,
         max_tokens: 1024,
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: messages,
         tools: [
           {
@@ -113,9 +113,9 @@ export async function generate(userMessage, threadId) {
 
     return "I'm sorry, I'm having trouble generating a response right now. Please try again later.";
   } catch (error) {
-    console.error("Generate Error:", error);
-    return "Something went wrong. Please try again later.";
-  }
+  console.error("Generate Error:", error);
+  return "Something went wrong. Please try again later.";
+}
 }
 
 // function for searching latest web results using Tavily
