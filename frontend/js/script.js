@@ -1,11 +1,15 @@
 const input = document.querySelector("#userinput");
 const chatContainer = document.querySelector("#chat_container");
 const askButton = document.querySelector("#ask_button");
+const voiceButton = document.querySelector("#voice_button");
 
 input.addEventListener("keyup", handleEnter);
 askButton.addEventListener("click", handleAsk);
 
 let threadId = crypto.randomUUID();
+let mediaRecorder;
+let audioChunks = [];
+let isRecording = false;
 
 // Scrolling function
 
@@ -78,10 +82,114 @@ async function generate(text) {
   }
 }
 
+// Voice Recording Function
+
+async function startRecording() {
+  try {
+    // Request microphone permission
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+    });
+
+    // Create MediaRecorder
+    mediaRecorder = new MediaRecorder(stream);
+
+    audioChunks = [];
+
+    // Collect recorded audio data
+    mediaRecorder.addEventListener("dataavailable", (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
+    });
+
+    // When recording stops
+    mediaRecorder.addEventListener("stop", async () => {
+      const audioBlob = new Blob(audioChunks, {
+        type: mediaRecorder.mimeType,
+      });
+
+      // Stop microphone tracks
+      stream.getTracks().forEach((track) => track.stop());
+
+      await transcribeAudio(audioBlob);
+    });
+
+    // Start recording
+    mediaRecorder.start();
+
+    isRecording = true;
+
+    // Change microphone button appearance
+    voiceButton.classList.add("bg-red-600");
+    voiceButton.innerHTML = '<i class="fa-solid fa-stop"></i>';
+  } catch (error) {
+    console.error("Microphone Error:", error);
+    alert("Please allow microphone access.");
+  }
+}
+
+// Stop Recording Function
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+
+    isRecording = false;
+
+    voiceButton.classList.remove("bg-red-600");
+    voiceButton.innerHTML = '<i class="fa-solid fa-microphone"></i>';
+  }
+}
+
+// Voice Button Click
+
+voiceButton.addEventListener("click", () => {
+  if (!isRecording) {
+    startRecording();
+  } else {
+    stopRecording();
+  }
+});
+
+// Send Audio to Backend for Transcription
+
+async function transcribeAudio(audioBlob) {
+  try {
+    voiceButton.disabled = true;
+
+    const formData = new FormData();
+
+    formData.append("audio", audioBlob, "recording.webm");
+
+    const response = await fetch("https://sacbot-ai.onrender.com/transcribe", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error("Transcription failed");
+    }
+
+    const result = await response.json();
+
+    console.log("Transcribed Text:", result.text);
+
+    if (result.text.trim()) {
+      await generate(result.text);
+    }
+  } catch (error) {
+    console.error("Voice Error:", error);
+    alert("Could not process your voice. Please try again.");
+  } finally {
+    voiceButton.disabled = false;
+  }
+}
+
 // Function for calling server
 
 async function callServer(inputText) {
-    const response = await fetch("https://sacbot-ai.onrender.com/chat", {
+  const response = await fetch("https://sacbot-ai.onrender.com/chat", {
     method: "POST",
     headers: {
       "content-type": "application/json",
